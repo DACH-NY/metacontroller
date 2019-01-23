@@ -53,7 +53,8 @@ var (
 	informerRelist    = flag.Duration("cache-flush-interval", 30*time.Minute, "How often to flush local caches and relist objects from the API server")
 	debugAddr         = flag.String("debug-addr", ":9999", "The address to bind the debug http endpoints")
 	clientConfigPath  = flag.String("client-config-path", "", "Path to kubeconfig file (same format as used by kubectl); if not specified, use in-cluster config")
-)
+	namespace = flag.String("namespace", "default", "Namespace where the controller listens")
+	)
 
 type controller interface {
 	Start()
@@ -91,15 +92,19 @@ func main() {
 	if err != nil {
 		glog.Fatalf("Can't create client for api %s: %v", v1alpha1.SchemeGroupVersion, err)
 	}
-	mcInformerFactory := mcinformers.NewSharedInformerFactory(mcClient, *informerRelist)
+	// namespace must be supplied via an external parameter
+	// we've hardcoded the names space as "todo"
+	nsOpt := mcinformers.WithNamespace(*namespace)
+	mcInformerFactory := mcinformers.NewSharedInformerFactoryWithOptions(mcClient, *informerRelist, nsOpt)
 
 	// Create dynamic clientset (factory for dynamic clients).
 	dynClient, err := dynamicclientset.New(config, resources)
 	if err != nil {
 		glog.Fatal(err)
 	}
+
 	// Create dynamic informer factory (for sharing dynamic informers).
-	dynInformers := dynamicinformer.NewSharedInformerFactory(dynClient, *informerRelist)
+	dynInformers := dynamicinformer.NewSharedInformerFactory(dynClient, *informerRelist, *namespace)
 
 	workqueue.SetProvider(ocworkqueue.MetricsProvider())
 	view.Register(ocworkqueue.DefaultViews...)
