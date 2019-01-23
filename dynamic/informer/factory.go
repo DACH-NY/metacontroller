@@ -36,16 +36,18 @@ type SharedInformerFactory struct {
 	mutex           sync.Mutex
 	refCount        map[string]int
 	sharedInformers map[string]*sharedResourceInformer
+	namespace 		string
 }
 
 // NewSharedInformerFactory creates a new factory for shared, dynamic informers.
 // Usually there is only one of these for the whole process, created in main().
-func NewSharedInformerFactory(clientset *dynamicclientset.Clientset, defaultResync time.Duration) *SharedInformerFactory {
+func NewSharedInformerFactory(clientset *dynamicclientset.Clientset, defaultResync time.Duration, namespace string) *SharedInformerFactory {
 	return &SharedInformerFactory{
 		clientset:       clientset,
 		defaultResync:   defaultResync,
 		refCount:        make(map[string]int),
 		sharedInformers: make(map[string]*sharedResourceInformer),
+		namespace: 		 namespace,
 	}
 }
 
@@ -75,7 +77,7 @@ func (f *SharedInformerFactory) Resource(apiVersion, resource string) (*Resource
 	if err != nil {
 		return nil, fmt.Errorf("can't create client for %v shared informer: %v", key, err)
 	}
-	client = client.Namespace("todo")
+	client = client.Namespace(f.namespace)
 	stopCh := make(chan struct{})
 
 	// closeFn is called by users of the shared informer (via Close()) to indicate
